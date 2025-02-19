@@ -14,6 +14,7 @@ import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.SparkMaxConfig;
 
+import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -40,6 +41,8 @@ public class Robot extends TimedRobot {
   private SparkClosedLoopController controllerRRSteer;
   private SparkClosedLoopController controllerRLSteer;
   private SparkClosedLoopController controllerFLSteer;
+
+  private Joystick joystick;
 
   //constant mulitples of velocities to scale inputs
   double kSteer = 1; 
@@ -104,7 +107,7 @@ public class Robot extends TimedRobot {
         .positionConversionFactor(2 * Math.PI)
         .velocityConversionFactor(Math.PI / 30);
 
-    //apply config to drive motorsm
+    //apply config to drive motors
     motorFRDrive.configure(driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRRDrive.configure(driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRLDrive.configure(driveConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
@@ -129,7 +132,10 @@ public class Robot extends TimedRobot {
     motorFRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters); 
+
+    //initialize the controller
+    Joystick joystick = new Joystick(0);
   }
 
   /**
@@ -194,9 +200,9 @@ public class Robot extends TimedRobot {
      double offsetY = 1;
      
      //putting this here temporarily as i dont know what the code is for the controller bc BEN wont tell mE WHERE THE GITHUB IS
-     double driveY = 0;
-     double driveX = 0;
-     double steer = 0; 
+     double driveY = Math.PI * joystick.getRawAxis(0) / 180;
+     double driveX = Math.PI * joystick.getRawAxis(1) / 180;
+     double steer = Math.PI * joystick.getRawAxis(2) / 180; 
 
      double speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
      double angle = Math.atan(driveY/driveX);
