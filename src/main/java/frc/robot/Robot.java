@@ -31,7 +31,17 @@ public class Robot extends TimedRobot {
 
   private final RobotContainer m_robotContainer;
 
-  //i think i gotta put this in here to make it work in other methods but this is weird and i dont understand it 
+  //ok i think this is declaring the objects here so they can be used by all of the loops nested within, but still initialized in the robot loop
+  private SparkMax motorFRDrive;
+  private SparkMax motorRRDrive;
+  private SparkMax motorRLDrive;
+  private SparkMax motorFLDrive;
+
+  private SparkMax motorFRSteer;
+  private SparkMax motorRRSteer;
+  private SparkMax motorRLSteer;
+  private SparkMax motorFLSteer;
+  
   private SparkClosedLoopController controllerFRDrive;
   private SparkClosedLoopController controllerRRDrive;
   private SparkClosedLoopController controllerRLDrive;
@@ -42,11 +52,59 @@ public class Robot extends TimedRobot {
   private SparkClosedLoopController controllerRLSteer;
   private SparkClosedLoopController controllerFLSteer;
 
+  private RelativeEncoder encoderFRDrive;
+  private RelativeEncoder encoderRRDrive;
+  private RelativeEncoder encoderRLDrive;
+  private RelativeEncoder encoderFLDrive;
+
+  private RelativeEncoder encoderFRSteer;
+  private RelativeEncoder encoderRRSteer;
+  private RelativeEncoder encoderRLSteer;
+  private RelativeEncoder encoderFLSteer;
+
   private Joystick joystick;
 
+  //ok lets make some constants and variables
   //constant mulitples of velocities to scale inputs
   double kSteer = 1; 
   double kDrive = 1; 
+
+  //define offsets of wheels from center in m, assuming perfect rectangle
+  double offsetX = 1;
+  double offsetY = 1;
+
+  //define inputs
+  double driveY = 0;
+  double driveX = 0;
+  double steer = 0; 
+
+  //define variables for mathh
+  double speed = 0;
+  double angle = 0;
+  double omega = 0;
+
+  double radiusFRX = 0;
+  double radiusFRY = 0;
+  double radiusRRX = 0;
+  double radiusRRY = 0;
+  double radiusRLX = 0;
+  double radiusRLY = 0;
+  double radiusFLX = 0;
+  double radiusFLY = 0;
+
+  double speedFR = 0;
+  double speedRR = 0;
+  double speedRL = 0;
+  double speedFL = 0;
+
+  double angleFR = 0;
+  double angleRR = 0;
+  double angleRL = 0;
+  double angleFL = 0;
+
+  double radiusX = 0;
+  double radiusY = 0;
+  double radius = 0;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -57,38 +115,41 @@ public class Robot extends TimedRobot {
     // autonomous chooser on the dashboard.
     m_robotContainer = new RobotContainer();
     
-    //initialize motor controllers, these ids are definitely wrong and need to be changed before testing
-    SparkMax motorFRDrive = new SparkMax(1, MotorType.kBrushless);
-    SparkMax motorRRDrive = new SparkMax(3, MotorType.kBrushless);
-    SparkMax motorRLDrive = new SparkMax(5, MotorType.kBrushless);
-    SparkMax motorFLDrive = new SparkMax(7, MotorType.kBrushless);
+    //initialize motor controllers
+    motorFRDrive = new SparkMax(1, MotorType.kBrushless);
+    motorRRDrive = new SparkMax(3, MotorType.kBrushless);
+    motorRLDrive = new SparkMax(5, MotorType.kBrushless);
+    motorFLDrive = new SparkMax(7, MotorType.kBrushless);
 
-    SparkMax motorFRSteer = new SparkMax(2, MotorType.kBrushless);
-    SparkMax motorRRSteer = new SparkMax(4, MotorType.kBrushless);
-    SparkMax motorRLSteer = new SparkMax(6, MotorType.kBrushless);
-    SparkMax motorFLSteer = new SparkMax(8, MotorType.kBrushless);
+    motorFRSteer = new SparkMax(2, MotorType.kBrushless);
+    motorRRSteer = new SparkMax(4, MotorType.kBrushless);
+    motorRLSteer = new SparkMax(6, MotorType.kBrushless);
+    motorFLSteer = new SparkMax(8, MotorType.kBrushless);
 
     //initialize internal close loop controllers
-    SparkClosedLoopController controllerFRDrive = motorFRDrive.getClosedLoopController();
-    SparkClosedLoopController controllerRRDrive = motorRRDrive.getClosedLoopController();
-    SparkClosedLoopController controllerRLDrive = motorRLDrive.getClosedLoopController();
-    SparkClosedLoopController controllerFLDrive = motorFLDrive.getClosedLoopController();
+    controllerFRDrive = motorFRDrive.getClosedLoopController();
+    controllerRRDrive = motorRRDrive.getClosedLoopController();
+    controllerRLDrive = motorRLDrive.getClosedLoopController();
+    controllerFLDrive = motorFLDrive.getClosedLoopController();
 
-    SparkClosedLoopController controllerFRSteer = motorFRSteer.getClosedLoopController();
-    SparkClosedLoopController controllerRRSteer = motorRRSteer.getClosedLoopController();
-    SparkClosedLoopController controllerRLSteer = motorRLSteer.getClosedLoopController();
-    SparkClosedLoopController controllerFLSteer = motorFLSteer.getClosedLoopController();
+    controllerFRSteer = motorFRSteer.getClosedLoopController();
+    controllerRRSteer = motorRRSteer.getClosedLoopController();
+    controllerRLSteer = motorRLSteer.getClosedLoopController();
+    controllerFLSteer = motorFLSteer.getClosedLoopController();
 
     //initialize internal encoders
-    RelativeEncoder encoderFRDrive = motorFRDrive.getEncoder();
-    RelativeEncoder encoderRRDrive = motorRRDrive.getEncoder();
-    RelativeEncoder encoderRLDrive = motorRLDrive.getEncoder();
-    RelativeEncoder encoderFLDrive = motorFLDrive.getEncoder();
+    encoderFRDrive = motorFRDrive.getEncoder();
+    encoderRRDrive = motorRRDrive.getEncoder();
+    encoderRLDrive = motorRLDrive.getEncoder();
+    encoderFLDrive = motorFLDrive.getEncoder();
     
-    RelativeEncoder encoderFRSteer = motorFRSteer.getEncoder();
-    RelativeEncoder encoderRRSteer = motorRRSteer.getEncoder();
-    RelativeEncoder encoderRLSteer = motorRLSteer.getEncoder();
-    RelativeEncoder encoderFLSteer = motorFLSteer.getEncoder();
+    encoderFRSteer = motorFRSteer.getEncoder();
+    encoderRRSteer = motorRRSteer.getEncoder();
+    encoderRLSteer = motorRLSteer.getEncoder();
+    encoderFLSteer = motorFLSteer.getEncoder();
+    
+    //initialize joystick
+    joystick = new Joystick(0);
     
     //set config for drive motors
     SparkMaxConfig driveConfig = new SparkMaxConfig();
@@ -102,7 +163,7 @@ public class Robot extends TimedRobot {
     //feed forward, the docs just said to put this in for velocity controllers
     .velocityFF(1/473);
 
-    //set conversion factors for encoders, position is in revolutions and velocity in rpm i think so this will need to be changed
+    //set conversion factors for encoders, position is in revolutions and velocity in rpm i think, so i converted to radians and rad/s for math
     driveConfig.encoder
         .positionConversionFactor(2 * Math.PI)
         .velocityConversionFactor(Math.PI / 30);
@@ -132,10 +193,7 @@ public class Robot extends TimedRobot {
     motorFRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters); 
-
-    //initialize the controller
-    Joystick joystick = new Joystick(0);
+    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);     
   }
 
   /**
@@ -195,19 +253,15 @@ public class Robot extends TimedRobot {
      * give commands to motor controllers and update internal pids
      */
      
-     //define offsets of wheels from center in m, assuming perfect rectangle
-     double offsetX = 1;
-     double offsetY = 1;
-     
-     //putting this here temporarily as i dont know what the code is for the controller bc BEN wont tell mE WHERE THE GITHUB IS
-     double driveY = Math.PI * joystick.getRawAxis(0) / 180;
-     double driveX = Math.PI * joystick.getRawAxis(1) / 180;
-     double steer = Math.PI * joystick.getRawAxis(2) / 180; 
+     //set inputs, theres no input smoothing here so should prolly do that at some point
+     driveY = joystick.getRawAxis(0);
+     driveX = joystick.getRawAxis(1);
+     steer = Math.PI * joystick.getRawAxis(2) / 180; 
 
-     double speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
-     double angle = Math.atan(driveY/driveX);
+     speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
+     angle = Math.atan(driveY/driveX);
      
-     double omega = kSteer * steer;
+     omega = kSteer * steer;
     
      //case when no steering input, still works if speed input is zero
      if(steer == 0){
@@ -226,29 +280,29 @@ public class Robot extends TimedRobot {
 
      //case when no drive input, but still steering
      else if((driveX == 0) && (driveY) == 0){
-      double radiusFRX = -offsetX;
-      double radiusFRY = -offsetY;
-      double radiusRRX = -offsetX;
-      double radiusRRY = offsetY;
-      double radiusRLX = offsetX;
-      double radiusRLY = offsetY;
-      double radiusFLX = offsetX;
-      double radiusFLY = - offsetY;
+      radiusFRX = -offsetX;
+      radiusFRY = -offsetY;
+      radiusRRX = -offsetX;
+      radiusRRY = offsetY;
+      radiusRLX = offsetX;
+      radiusRLY = offsetY;
+      radiusFLX = offsetX;
+      radiusFLY = - offsetY;
 
-      double speedFR = kDrive * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY));
-      double speedRR = kDrive * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY));
-      double speedRL = kDrive * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY));
-      double speedFL = kDrive * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY));
+      speedFR = kDrive * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY));
+      speedRR = kDrive * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY));
+      speedRL = kDrive * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY));
+      speedFL = kDrive * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY));
 
       controllerFRDrive.setReference(speedFR, ControlType.kVelocity);
       controllerRRDrive.setReference(speedRR, ControlType.kVelocity);
       controllerRLDrive.setReference(speedRL, ControlType.kVelocity);
       controllerFLDrive.setReference(speedFL, ControlType.kVelocity);
 
-      double angleFR = Math.atan(radiusFRY/radiusFRX);
-      double angleRR = Math.atan(radiusRRY/radiusRRX);
-      double angleRL = Math.atan(radiusRLY/radiusRLX);
-      double angleFL = Math.atan(radiusFLY/radiusFLX);
+      angleFR = Math.atan(radiusFRY/radiusFRX);
+      angleRR = Math.atan(radiusRRY/radiusRRX);
+      angleRL = Math.atan(radiusRLY/radiusRLX);
+      angleFL = Math.atan(radiusFLY/radiusFLX);
 
       controllerFRSteer.setReference(angleFR, ControlType.kPosition);
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
@@ -258,33 +312,33 @@ public class Robot extends TimedRobot {
 
      //case when there is drive and steering input
      else{
-      double radiusX = kDrive * driveY / omega;
-      double radiusY = -1 * kDrive * driveX / omega;
-      double radius = Math.sqrt((radiusX * radiusX) + (radiusY * radiusY));
+      radiusX = kDrive * driveY / omega;
+      radiusY = -1 * kDrive * driveX / omega;
+      radius = Math.sqrt((radiusX * radiusX) + (radiusY * radiusY));
       
-      double radiusFRX = radiusX - offsetX;
-      double radiusFRY = radiusY - offsetY;
-      double radiusRRX = radiusX - offsetX;
-      double radiusRRY = radiusY + offsetY;
-      double radiusRLX = radiusX + offsetX;
-      double radiusRLY = radiusY + offsetY;
-      double radiusFLX = radiusX + offsetX;
-      double radiusFLY = radiusY - offsetY;
+      radiusFRX = radiusX - offsetX;
+      radiusFRY = radiusY - offsetY;
+      radiusRRX = radiusX - offsetX;
+      radiusRRY = radiusY + offsetY;
+      radiusRLX = radiusX + offsetX;
+      radiusRLY = radiusY + offsetY;
+      radiusFLX = radiusX + offsetX;
+      radiusFLY = radiusY - offsetY;
 
-      double speedFR = speed * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY)) / radius;
-      double speedRR = speed * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY)) / radius;
-      double speedRL = speed * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY)) / radius;
-      double speedFL = speed * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY)) / radius;
+      speedFR = speed * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY)) / radius;
+      speedRR = speed * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY)) / radius;
+      speedRL = speed * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY)) / radius;
+      speedFL = speed * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY)) / radius;
 
       controllerFRDrive.setReference(speedFR, ControlType.kVelocity);
       controllerRRDrive.setReference(speedRR, ControlType.kVelocity);
       controllerRLDrive.setReference(speedRL, ControlType.kVelocity);
       controllerFLDrive.setReference(speedFL, ControlType.kVelocity);
 
-      double angleFR = Math.atan(radiusFRY/radiusFRX);
-      double angleRR = Math.atan(radiusRRY/radiusRRX);
-      double angleRL = Math.atan(radiusRLY/radiusRLX);
-      double angleFL = Math.atan(radiusFLY/radiusFLX);
+      angleFR = Math.atan(radiusFRY/radiusFRX);
+      angleRR = Math.atan(radiusRRY/radiusRRX);
+      angleRL = Math.atan(radiusRLY/radiusRLX);
+      angleFL = Math.atan(radiusFLY/radiusFLX);
 
       controllerFRSteer.setReference(angleFR, ControlType.kPosition);
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
