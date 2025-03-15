@@ -66,12 +66,12 @@ public class Robot extends TimedRobot {
 
   //ok lets make some constants and variables
   //constant mulitples of velocities to scale inputs
-  double kSteer = 1; 
-  double kDrive = 100; 
+  final double kSteer = 1; 
+  final double kDrive = 100; 
 
   //define offsets of wheels from center in m, assuming perfect rectangle
-  double offsetX = 1;
-  double offsetY = 1;
+  final double offsetX = 1;
+  final double offsetY = 1;
 
   //define inputs
   double driveY = 0;
@@ -81,6 +81,8 @@ public class Robot extends TimedRobot {
   //define variables for mathh
   double speed = 0;
   double angle = 0;
+  double lastAngle = 0;
+  double angleOffset = 0;
   double omega = 0;
 
   double radiusFRX = 0;
@@ -104,7 +106,7 @@ public class Robot extends TimedRobot {
 
   double radiusX = 0;
   double radiusY = 0;
-  double radius = 0;
+  double radius = 0; 
 
   final double steerRatio = (7);
   /**
@@ -184,11 +186,11 @@ public class Robot extends TimedRobot {
     .p(0.01)
     .i(0.0)
     .d(0.0)
-    .outputRange(-1, 1);
+    .outputRange(-100, 100);
 
     //set conversion factors for encoders, position is in revolutions and velocity in rpm i think so this will need to be changed
     steerConfig.encoder
-        .positionConversionFactor(1)
+        .positionConversionFactor(2*Math.PI)
         .velocityConversionFactor(1);
 
     //motorFRDrive.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
@@ -257,25 +259,49 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
     /** fetch controller inputs
-     * do math to find what psotions and velocities should be
-     * give commands to motor controllers and update internal pids
-     */
+    * do math to find what psotions and velocities should be
+    * give commands to motor controllers and update internal pids
+    */
      
-     //set inputs, theres no input smoothing here so should prolly do that at some point
-     driveY = -1 * joystick.getRawAxis(5);
-     driveX = joystick.getRawAxis(4);
-     steer = Math.PI * joystick.getRawAxis(0); 
-     System.out.println("Steer: " + steer);
+    //set inputs, theres no input smoothing here so should prolly do that at some point
+    driveY = -1 * joystick.getRawAxis(5);
+    driveX = joystick.getRawAxis(4);
+    steer = Math.PI * joystick.getRawAxis(0); 
+    //System.out.println("Steer: " + steer);
 
-     speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
-     angle = steerRatio * Math.atan(driveY/driveX);
+    speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
+    angle = steerRatio * Math.atan(driveY/driveX);
      
-     omega = kSteer * steer;
-    
-     //case when no steering input, still works if speed input is zero
-     if((steer >= -0.05) && (steer <= 0.05)){
-      System.out.println("ayy its me mario im setting the the motors to drive");
-      System.out.println(speed);
+    if(angle/Math.abs(angle) != lastAngle){
+      if(lastAngle == -1){
+        if(driveY > 0){
+          angleOffset -= steerRatio * Math.PI;
+        }
+        else{
+          angleOffset += steerRatio * Math.PI;
+        }
+      }
+      else{
+        if(driveY > 0){
+          angleOffset += steerRatio * Math.PI;
+        }
+        else{
+          angleOffset -= steerRatio * Math.PI;
+        }
+      }
+    }
+     
+    System.out.println("alright its me waluigi and im tired but heres the angle and lastAgle i guess");
+    System.out.println(angle);
+    System.out.println(lastAngle);
+    omega = kSteer * steer;
+    lastAngle = (angle)/Math.abs(angle);
+    angle += angleOffset;
+
+    //case when no steering input, still works if speed input is zero
+    if((steer >= -0.05) && (steer <= 0.05)){
+      //.out.println("ayy its me mario im setting the the motors to drive");
+      //System.out.println(speed);
       //set drive motors to the length of the velocity vector
       controllerFRDrive.setReference(speed, ControlType.kVelocity);
       controllerRRDrive.setReference(speed, ControlType.kVelocity);
@@ -287,10 +313,10 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angle, ControlType.kPosition);
       controllerRLSteer.setReference(angle, ControlType.kPosition);
       controllerFLSteer.setReference(angle, ControlType.kPosition);
-     }
+    }
 
-     //case when no drive input, but still steering
-     else if((driveX == 0) && (driveY) == 0){
+    //case when no drive input, but still steering
+    else if((driveX >= -0.05) && (driveX <= 0.05) && (driveY >= -0.05) && (driveY <= 0.05)){
       radiusFRX = -offsetX;
       radiusFRY = -offsetY;
       radiusRRX = -offsetX;
@@ -300,10 +326,13 @@ public class Robot extends TimedRobot {
       radiusFLX = offsetX;
       radiusFLY = - offsetY;
 
-      speedFR = kDrive * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY));
-      speedRR = kDrive * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY));
-      speedRL = kDrive * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY));
-      speedFL = kDrive * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY));
+      //System.out.println("HEeeyy its a me luigi nd im gonna set the motors to steer. mweahahahahaha");
+      //System.out.println(speed);
+
+      speedFR = kDrive * omega * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY));
+      speedRR = kDrive * omega * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY));
+      speedRL = kDrive * omega * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY));
+      speedFL = kDrive * omega * Math.sqrt((radiusFLX * radiusFLX) + (radiusFLY * radiusFLY));
 
       controllerFRDrive.setReference(speedFR, ControlType.kVelocity);
       controllerRRDrive.setReference(speedRR, ControlType.kVelocity);
@@ -319,10 +348,10 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
       controllerRLSteer.setReference(angleRL, ControlType.kPosition);
       controllerFLSteer.setReference(angleFL, ControlType.kPosition);
-     }
+    }
 
-     //case when there is drive and steering input
-     else{
+    //case when there is drive and steering input
+    else{
       radiusX = kDrive * driveY / omega;
       radiusY = -1 * kDrive * driveX / omega;
       radius = Math.sqrt((radiusX * radiusX) + (radiusY * radiusY));
@@ -355,7 +384,7 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
       controllerRLSteer.setReference(angleRL, ControlType.kPosition);
       controllerFLSteer.setReference(angleFL, ControlType.kPosition);
-     }
+    }
   }
 
   @Override
