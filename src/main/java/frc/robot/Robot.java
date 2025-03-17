@@ -65,6 +65,8 @@ public class Robot extends TimedRobot {
   private Joystick joystick;
 
   //ok lets make some constants and variables
+  final double steerRatio = (21.5);
+
   //constant mulitples of velocities to scale inputs
   final double kSteer = 1; 
   final double kDrive = 100; 
@@ -72,6 +74,12 @@ public class Robot extends TimedRobot {
   //define offsets of wheels from center in m, assuming perfect rectangle
   final double offsetX = 1;
   final double offsetY = 1;
+
+  //angle offsets for wheels
+  final double wheelOffsetFR = -1/4 * 2 * Math.PI * steerRatio * 0;
+  final double wheelOffsetRR = 7/10 * 2 * Math.PI * steerRatio * 0;
+  final double wheelOffsetRL = 1/6 * 2 * Math.PI * steerRatio * 0;
+  final double wheelOffsetFL = -1/6 * 2 * Math.PI * steerRatio * 0;
 
   //define inputs
   double driveY = 0;
@@ -81,9 +89,10 @@ public class Robot extends TimedRobot {
   //define variables for mathh
   double speed = 0;
   double angle = 0;
-  double lastAngle = 0;
+  double lastX = 1;
   double angleOffset = 0;
   double omega = 0;
+  double n = 0;
 
   double radiusFRX = 0;
   double radiusFRY = 0;
@@ -108,7 +117,17 @@ public class Robot extends TimedRobot {
   double radiusY = 0;
   double radius = 0; 
 
-  final double steerRatio = (7);
+  double speedFRX = 0;
+  double speedRRX = 0;
+  double speedRLX = 0;
+  double speedFLX = 0;
+
+  double speedFRY = 0;
+  double speedRRY = 0;
+  double speedRLY = 0;
+  double speedFLY = 0;
+
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -186,7 +205,7 @@ public class Robot extends TimedRobot {
     .p(0.01)
     .i(0.0)
     .d(0.0)
-    .outputRange(-100, 100);
+    .outputRange(-10000, 10000);
 
     //set conversion factors for encoders, position is in revolutions and velocity in rpm i think so this will need to be changed
     steerConfig.encoder
@@ -203,7 +222,7 @@ public class Robot extends TimedRobot {
     motorFRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRRSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     motorRLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);     
+    motorFLSteer.configure(steerConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
   }
 
   /**
@@ -253,53 +272,77 @@ public class Robot extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+    encoderFLSteer.setPosition(0);
+    encoderFRSteer.setPosition(0);
+    encoderRLSteer.setPosition(0);
+    encoderRRSteer.setPosition(0);
+    n = 0;
+
+    angle = 0;
+    angleOffset = 0;
   }
 
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
+    // if(n == 0){
+    // encoderFLSteer.setPosition(0);
+    // encoderFRSteer.setPosition(0);
+    // encoderRLSteer.setPosition(0);
+    // encoderRRSteer.setPosition(0);
+    // angleOffset = 0;
+    // n += 1;
+    // }
     /** fetch controller inputs
     * do math to find what psotions and velocities should be
     * give commands to motor controllers and update internal pids
     */
-     
+    
     //set inputs, theres no input smoothing here so should prolly do that at some point
-    driveY = -1 * joystick.getRawAxis(5);
+    driveY = joystick.getRawAxis(5);
     driveX = joystick.getRawAxis(4);
     steer = Math.PI * joystick.getRawAxis(0); 
     //System.out.println("Steer: " + steer);
 
     speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
     angle = steerRatio * Math.atan(driveY/driveX);
-     
-    if(angle/Math.abs(angle) != lastAngle){
-      if(lastAngle == -1){
-        if(driveY > 0){
-          angleOffset -= steerRatio * Math.PI;
+    if(driveX != 0){
+      if(driveX/Math.abs(driveX) != lastX){
+        if(lastX == -1){
+          if(driveY > 0){
+            angleOffset -= steerRatio * Math.PI;
+          }
+          else{
+            angleOffset += steerRatio * Math.PI;
+          }
         }
         else{
-          angleOffset += steerRatio * Math.PI;
-        }
-      }
-      else{
-        if(driveY > 0){
-          angleOffset += steerRatio * Math.PI;
-        }
-        else{
-          angleOffset -= steerRatio * Math.PI;
+          if(driveY > 0){
+            angleOffset += steerRatio * Math.PI;
+          }
+          else{
+            angleOffset -= steerRatio * Math.PI;
+          }
         }
       }
     }
      
-    System.out.println("alright its me waluigi and im tired but heres the angle and lastAgle i guess");
-    System.out.println(angle);
-    System.out.println(lastAngle);
+    System.out.println("alright its me wario and im tired but heres the driveX and lastX i guess");
+    System.out.println("driveX " + driveX);
+    System.out.println("lastX " + lastX);
+    System.out.println("angleOffset " + angleOffset);
+    System.out.println("angle " + (angle + angleOffset));
+    System.out.println("encoder " + encoderFRSteer.getPosition());
+
     omega = kSteer * steer;
-    lastAngle = (angle)/Math.abs(angle);
+
+    if(driveX != 0){
+      lastX = (driveX)/Math.abs(driveX);
+    }
     angle += angleOffset;
 
     //case when no steering input, still works if speed input is zero
-    if((steer >= -0.05) && (steer <= 0.05)){
+    if((steer == 0)){
       //.out.println("ayy its me mario im setting the the motors to drive");
       //System.out.println(speed);
       //set drive motors to the length of the velocity vector
@@ -309,22 +352,24 @@ public class Robot extends TimedRobot {
       controllerFLDrive.setReference(speed, ControlType.kVelocity);
 
       //set steering motors to the angle of the velocity vector
-      controllerFRSteer.setReference(angle, ControlType.kPosition);
-      controllerRRSteer.setReference(angle, ControlType.kPosition);
-      controllerRLSteer.setReference(angle, ControlType.kPosition);
-      controllerFLSteer.setReference(angle, ControlType.kPosition);
+      controllerFRSteer.setReference(angle + wheelOffsetFR, ControlType.kPosition);
+      controllerRRSteer.setReference(angle + wheelOffsetRR, ControlType.kPosition);
+      controllerRLSteer.setReference(angle + wheelOffsetRL, ControlType.kPosition);
+      controllerFLSteer.setReference(angle + wheelOffsetFL, ControlType.kPosition);
+      
+    
     }
 
     //case when no drive input, but still steering
     else if((driveX >= -0.05) && (driveX <= 0.05) && (driveY >= -0.05) && (driveY <= 0.05)){
-      radiusFRX = -offsetX;
-      radiusFRY = -offsetY;
-      radiusRRX = -offsetX;
-      radiusRRY = offsetY;
-      radiusRLX = offsetX;
-      radiusRLY = offsetY;
-      radiusFLX = offsetX;
-      radiusFLY = - offsetY;
+      radiusFRX = offsetX;
+      radiusFRY = offsetY;
+      radiusRRX = offsetX;
+      radiusRRY = -offsetY;
+      radiusRLX = -offsetX;
+      radiusRLY = -offsetY;
+      radiusFLX = -offsetX;
+      radiusFLY = offsetY;
 
       //System.out.println("HEeeyy its a me luigi nd im gonna set the motors to steer. mweahahahahaha");
       //System.out.println(speed);
@@ -339,15 +384,17 @@ public class Robot extends TimedRobot {
       controllerRLDrive.setReference(speedRL, ControlType.kVelocity);
       controllerFLDrive.setReference(speedFL, ControlType.kVelocity);
 
-      angleFR = steerRatio * Math.atan(radiusFRY/radiusFRX);
-      angleRR = steerRatio * Math.atan(radiusRRY/radiusRRX);
-      angleRL = steerRatio * Math.atan(radiusRLY/radiusRLX);
-      angleFL = steerRatio * Math.atan(radiusFLY/radiusFLX);
+      //calculate the angle of each wheel, need to add an offset when x is negative because arctan only works on a range of pi
+      angleFR = steerRatio * Math.atan(radiusFRY/radiusFRX) + angleOffset;
+      angleRR = steerRatio * Math.atan(radiusRRY/radiusRRX) + angleOffset;
+      angleRL = steerRatio * Math.atan(radiusRLY/radiusRLX) + angleOffset;
+      angleFL = steerRatio * Math.atan(radiusFLY/radiusFLX) + angleOffset;
 
-      controllerFRSteer.setReference(angleFR, ControlType.kPosition);
-      controllerRRSteer.setReference(angleRR, ControlType.kPosition);
-      controllerRLSteer.setReference(angleRL, ControlType.kPosition);
-      controllerFLSteer.setReference(angleFL, ControlType.kPosition);
+      controllerFRSteer.setReference(angleFR + wheelOffsetFR, ControlType.kPosition);
+      controllerRRSteer.setReference(angleRR + wheelOffsetRR, ControlType.kPosition);
+      controllerRLSteer.setReference(angleRL + wheelOffsetRL, ControlType.kPosition);
+      controllerFLSteer.setReference(angleFL + wheelOffsetFL, ControlType.kPosition);
+      
     }
 
     //case when there is drive and steering input
@@ -355,6 +402,7 @@ public class Robot extends TimedRobot {
       radiusX = kDrive * driveY / omega;
       radiusY = -1 * kDrive * driveX / omega;
       radius = Math.sqrt((radiusX * radiusX) + (radiusY * radiusY));
+      
       
       radiusFRX = radiusX - offsetX;
       radiusFRY = radiusY - offsetY;
@@ -365,6 +413,7 @@ public class Robot extends TimedRobot {
       radiusFLX = radiusX + offsetX;
       radiusFLY = radiusY - offsetY;
 
+      /*
       speedFR = speed * Math.sqrt((radiusFRX * radiusFRX) + (radiusFRY * radiusFRY)) / radius;
       speedRR = speed * Math.sqrt((radiusRRX * radiusRRX) + (radiusRRY * radiusRRY)) / radius;
       speedRL = speed * Math.sqrt((radiusRLX * radiusRLX) + (radiusRLY * radiusRLY)) / radius;
@@ -375,15 +424,60 @@ public class Robot extends TimedRobot {
       controllerRLDrive.setReference(speedRL, ControlType.kVelocity);
       controllerFLDrive.setReference(speedFL, ControlType.kVelocity);
 
-      angleFR = steerRatio * Math.atan(radiusFRY/radiusFRX);
-      angleRR = steerRatio * Math.atan(radiusRRY/radiusRRX);
-      angleRL = steerRatio * Math.atan(radiusRLY/radiusRLX);
-      angleFL = steerRatio * Math.atan(radiusFLY/radiusFLX);
+      angleFR = steerRatio * Math.atan(radiusFRY/radiusFRX) + angleOffset;
+      angleRR = steerRatio * Math.atan(radiusRRY/radiusRRX) + angleOffset;
+      angleRL = steerRatio * Math.atan(radiusRLY/radiusRLX) + angleOffset;
+      angleFL = steerRatio * Math.atan(radiusFLY/radiusFLX) + angleOffset;
+
+      controllerFRSteer.setReference(angleFR + wheelOffsetFR, ControlType.kPosition);
+      controllerRRSteer.setReference(angleRR + wheelOffsetRR, ControlType.kPosition);
+      controllerRLSteer.setReference(angleRL + wheelOffsetRL, ControlType.kPosition);
+      controllerFLSteer.setReference(angleFL + wheelOffsetFL, ControlType.kPosition);
+      */
+       
+
+      speedFRX = (speed / radius) * -radiusFRY;
+      speedRRX = (speed / radius) * -radiusRRY;
+      speedRLX = (speed / radius) * -radiusRLY;
+      speedFLX = (speed / radius) * -radiusFLY;
+
+      speedFRY = (speed / radius) * radiusFRX;
+      speedRRY = (speed / radius) * radiusRRX;
+      speedRLY = (speed / radius) * radiusRLX;
+      speedFLY = (speed / radius) * radiusFLX;
+
+      speedFR = kDrive * Math.sqrt((speedFRX * speedFRX) + (speedFRY * speedFRY));
+      speedRR = kDrive * Math.sqrt((speedRRX * speedRRX) + (speedRRY * speedRRY));
+      speedRL = kDrive * Math.sqrt((speedRLX * speedRLX) + (speedRLY * speedRLY));
+      speedFL = kDrive * Math.sqrt((speedFLX * speedFLX) + (speedFLY * speedFLY));
+
+      angleFR = Math.atan(speedFRY / speedFRX) + angleOffset;
+      angleRR = Math.atan(speedRRY / speedRRX) + angleOffset;
+      angleRL = Math.atan(speedRLY / speedRLX) + angleOffset;
+      angleFL = Math.atan(speedFLY / speedFLX) + angleOffset;
 
       controllerFRSteer.setReference(angleFR, ControlType.kPosition);
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
       controllerRLSteer.setReference(angleRL, ControlType.kPosition);
       controllerFLSteer.setReference(angleFL, ControlType.kPosition);
+
+      controllerFRDrive.setReference(speedFR, ControlType.kVelocity);
+      controllerRRDrive.setReference(speedRR, ControlType.kVelocity);
+      controllerRLDrive.setReference(speedRL, ControlType.kVelocity);
+      controllerFLDrive.setReference(speedFL, ControlType.kVelocity);
+      
+    System.out.println("waaabufffeeeeet its me toad, and im heer to tell you tha youre duuumb here is the values for your speedFR and angleFR IDIOT NERD BOZO kk byyyyeyeeee");
+    System.out.println(speedFR);
+    System.out.println(angleFR);
+    
+
+    
+    } 
+    if(joystick.getRawButtonPressed(2)){
+      controllerFRSteer.setReference(0, ControlType.kPosition);
+    }
+    if(joystick.getRawButtonPressed(1)){
+      controllerFRSteer.setReference(2 * Math.PI * steerRatio, ControlType.kPosition);
     }
   }
 
