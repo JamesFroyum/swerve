@@ -19,7 +19,9 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
+import static edu.wpi.first.units.Units.derive;
 
+import java.util.ArrayList;
 
 /**
  * The methods in this class are called automatically corresponding to each mode, as described in
@@ -66,7 +68,7 @@ public class Robot extends TimedRobot {
 
   //ok lets make some constants and variables
   //constant mulitples of velocities to scale inputs
-  double kSteer = 1; 
+  double kSteer = 0.1; 
   double kDrive = 100; 
 
   //define offsets of wheels from center in m, assuming perfect rectangle
@@ -77,6 +79,10 @@ public class Robot extends TimedRobot {
   double driveY = 0;
   double driveX = 0;
   double steer = 0; 
+
+  double currentDriveY = 0;
+  double currentDriveX = 0;
+  double currentSteer = 0;
 
   //define variables for mathh
   double speed = 0;
@@ -105,6 +111,33 @@ public class Robot extends TimedRobot {
   double radiusX = 0;
   double radiusY = 0;
   double radius = 0;
+
+  int smoothingFrames = 4;
+  double smoothingMinimum = 0.5;
+  int i = 1;
+  
+  public void fuckYouImPuttingItInAMethod(){
+    ArrayList<Double> smoothingListDriveX = new ArrayList<Double>();
+    for (i = 0; i <= smoothingFrames; i++){
+      smoothingListDriveX.add(0, 0d);
+    }
+
+    ArrayList<Double> smoothingListDriveY = new ArrayList<Double>();
+    for (i = 0; i <= smoothingFrames; i++){
+      smoothingListDriveY.add(0, 0d);
+    }
+
+    ArrayList<Double> smoothingListSteer = new ArrayList<Double>();
+    for (i = 0; i <= smoothingFrames; i++){
+      smoothingListSteer.add(0, 0d);
+    }
+
+    double smoothingScalar = 0;
+
+    for (i = 0; i <= smoothingFrames; i++){
+      smoothingScalar = smoothingScalar + Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i);
+    }
+  }
 
   final double steerRatio = (7);
   /**
@@ -257,23 +290,50 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
     /** fetch controller inputs
-     * do math to find what psotions and velocities should be
-     * give commands to motor controllers and update internal pids
-     */
+    * do math to find what psotions and velocities should be
+    * give commands to motor controllers and update internal pids
+    */
      
-     //set inputs, theres no input smoothing here so should prolly do that at some point
-     driveY = -1 * joystick.getRawAxis(5);
-     driveX = joystick.getRawAxis(4);
-     steer = Math.PI * joystick.getRawAxis(0); 
-     System.out.println("Steer: " + steer);
+    //adding the new input to the list of inputs for smoothing, and removing the last input
+    currentDriveY = -1 * joystick.getRawAxis(5);
+    currentDriveX = joystick.getRawAxis(4);
+    currentSteer = Math.PI * joystick.getRawAxis(0); 
 
-     speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
-     angle = steerRatio * Math.atan(driveY/driveX);
-     
-     omega = kSteer * steer;
+    smoothingListDriveY.add(0, currentDriveY);
+    smoothingListDriveX.add(0, currentDriveY);
+    smoothingListSteer.add(0, currentSteer);
     
-     //case when no steering input, still works if speed input is zero
-     if((steer >= -0.05) && (steer <= 0.05)){
+    smoothingListDriveY.remove(5);
+    smoothingListDriveX.remove(5);
+    smoothingListSteer.remove(5);
+
+    //finding what values should be sent to the wheels using the smoothing lists
+    driveY = 0;
+    for(i = 0; i <= smoothingFrames; i++){
+      driveY += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListDriveY.get(i);
+    }
+    driveY = driveY / (smoothingScalar * (smoothingFrames + 1));
+
+    driveX = 0;
+    for(i = 0; i <= smoothingFrames; i++){
+      driveX += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListDriveX.get(i);
+    }
+    driveX = driveX / (smoothingScalar * (smoothingFrames + 1));
+
+    steer = 0;
+    for(i = 0; i <= smoothingFrames; i++){
+      steer += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListSteer.get(i);
+    }
+    steer = steer / (smoothingScalar * (smoothingFrames + 1));
+
+    //find actual values using smoothed inputs
+    speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
+    angle = steerRatio * Math.atan(driveY/driveX);
+     
+    omega = kSteer * steer;
+    
+    //case when no steering input, still works if speed input is zero
+    if((steer >= -0.05) && (steer <= 0.05)){
       System.out.println("ayy its me mario im setting the the motors to drive");
       System.out.println(speed);
       //set drive motors to the length of the velocity vector
@@ -287,10 +347,10 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angle, ControlType.kPosition);
       controllerRLSteer.setReference(angle, ControlType.kPosition);
       controllerFLSteer.setReference(angle, ControlType.kPosition);
-     }
+    }
 
-     //case when no drive input, but still steering
-     else if((driveX == 0) && (driveY) == 0){
+    //case when no drive input, but still steering
+    else if((driveX == 0) && (driveY) == 0){
       radiusFRX = -offsetX;
       radiusFRY = -offsetY;
       radiusRRX = -offsetX;
@@ -319,10 +379,10 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
       controllerRLSteer.setReference(angleRL, ControlType.kPosition);
       controllerFLSteer.setReference(angleFL, ControlType.kPosition);
-     }
+    }
 
-     //case when there is drive and steering input
-     else{
+    //case when there is drive and steering input
+    else{
       radiusX = kDrive * driveY / omega;
       radiusY = -1 * kDrive * driveX / omega;
       radius = Math.sqrt((radiusX * radiusX) + (radiusY * radiusY));
@@ -355,7 +415,7 @@ public class Robot extends TimedRobot {
       controllerRRSteer.setReference(angleRR, ControlType.kPosition);
       controllerRLSteer.setReference(angleRL, ControlType.kPosition);
       controllerFLSteer.setReference(angleFL, ControlType.kPosition);
-     }
+    }
   }
 
   @Override
@@ -376,3 +436,4 @@ public class Robot extends TimedRobot {
   @Override
   public void simulationPeriodic() {}
 }
+
