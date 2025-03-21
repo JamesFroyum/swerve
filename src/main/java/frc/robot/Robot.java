@@ -19,8 +19,6 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
-import static edu.wpi.first.units.Units.derive;
-
 import java.util.ArrayList;
 
 /**
@@ -112,9 +110,16 @@ public class Robot extends TimedRobot {
   double radiusY = 0;
   double radius = 0;
 
+  ArrayList<Double> smoothingListDriveX;
+  ArrayList<Double> smoothingListDriveY;
+  ArrayList<Double> smoothingListSteer; 
+
+  double smoothingScalar = 0;
+
+  //smoothingFrames is zero indexed, so a value of 4 means were smoothing over 5 frames
   int smoothingFrames = 4;
   double smoothingMinimum = 0.5;
-  int i = 1;
+  int i = 0;
   
   public void fuckYouImPuttingItInAMethod(){
     ArrayList<Double> smoothingListDriveX = new ArrayList<Double>();
@@ -131,8 +136,6 @@ public class Robot extends TimedRobot {
     for (i = 0; i <= smoothingFrames; i++){
       smoothingListSteer.add(0, 0d);
     }
-
-    double smoothingScalar = 0;
 
     for (i = 0; i <= smoothingFrames; i++){
       smoothingScalar = smoothingScalar + Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i);
@@ -303,28 +306,28 @@ public class Robot extends TimedRobot {
     smoothingListDriveX.add(0, currentDriveY);
     smoothingListSteer.add(0, currentSteer);
     
-    smoothingListDriveY.remove(5);
-    smoothingListDriveX.remove(5);
-    smoothingListSteer.remove(5);
+    smoothingListDriveY.remove(smoothingFrames + 1);
+    smoothingListDriveX.remove(smoothingFrames + 1);
+    smoothingListSteer.remove(smoothingFrames + 1);
 
     //finding what values should be sent to the wheels using the smoothing lists
     driveY = 0;
     for(i = 0; i <= smoothingFrames; i++){
       driveY += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListDriveY.get(i);
     }
-    driveY = driveY / (smoothingScalar * (smoothingFrames + 1));
+    driveY = driveY / smoothingScalar;
 
     driveX = 0;
     for(i = 0; i <= smoothingFrames; i++){
       driveX += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListDriveX.get(i);
     }
-    driveX = driveX / (smoothingScalar * (smoothingFrames + 1));
+    driveX = driveX / smoothingScalar;
 
     steer = 0;
     for(i = 0; i <= smoothingFrames; i++){
       steer += Math.pow(Math.pow(smoothingMinimum, (1 / (smoothingFrames - 1))), i) * smoothingListSteer.get(i);
     }
-    steer = steer / (smoothingScalar * (smoothingFrames + 1));
+    steer = steer / smoothingScalar;
 
     //find actual values using smoothed inputs
     speed = kDrive * Math.sqrt((driveX * driveX) + (driveY * driveY));
